@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from typing import Annotated, List, Literal
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, AIMessage
 from langchain_tavily import TavilySearch
 from dotenv import load_dotenv
 from langchain_core.tools import tool
@@ -271,7 +271,8 @@ try:
             openai_api_key=os.getenv("OPENROUTER_API_KEY"),
             openai_api_base="https://openrouter.ai/api/v1",
         )
-        rag_retriever = FAISS.load_local(str(FAISS_INDEX_DIR), rag_embeddings, allow_dangerous_deserialization=True)
+        vectorstore = FAISS.load_local(str(FAISS_INDEX_DIR), rag_embeddings, allow_dangerous_deserialization=True)
+        rag_retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     else:
         rag_retriever = None
 except Exception:
@@ -374,7 +375,7 @@ def knowledge_node(state: AgentState) -> Command[Literal["__end__"]]:
         return Command(goto=END, update=state)
 
     # Retrieve relevant chunks
-    docs = rag_retriever.invoke(last_msg, k=4)
+    docs = rag_retriever.invoke(last_msg)
 
     if not docs:
         response = AIMessage(content="No relevant documentation found. Could you rephrase your question or specify a topic?")

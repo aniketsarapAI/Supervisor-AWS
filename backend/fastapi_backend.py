@@ -191,7 +191,7 @@ async def generate_agent_response(message: str, thread_id: str):
     snapshot = await agent_app.aget_state(config=memory_config)
     if snapshot and snapshot.values and "query_analysis" in snapshot.values:
         prev_qa = snapshot.values.get("query_analysis")
-        if prev_qa and prev_qa.get("topic_changed", False):
+        if prev_qa and getattr(prev_qa, "topic_changed", False):
             conversation_module.clear_filters(thread_id)
             active_filters = ActiveFilters()
 
