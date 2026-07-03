@@ -250,6 +250,7 @@ class QueryAnalysis(BaseModel):
 
 # NODES CONSTANTS
 QUERY_ANALYSIS = "query_analysis"
+CONVERSATION = "conversation"
 SUPERVISOR = "supervisor"
 ENHANCER = "enhancer"
 GREETING = "greeting"
@@ -306,6 +307,41 @@ You must return ONLY a valid JSON object, no extra commentary. The format is:
     chain_output = chain.invoke({"messages": state.messages[-6:]})
 
     state.query_analysis = chain_output
+
+    return Command(
+        goto=END,
+        update=state,
+    )
+
+
+# NODE: CONVERSATION
+def conversation_node(state: AgentState) -> Command[Literal["__end__"]]:
+    """
+    Conversation agent node.
+    Handles greetings, thanks, goodbye, and casual chat.
+    No tools. Returns response and ends.
+    """
+    prompt_template = PromptTemplate(
+        template="""
+You are a friendly, professional conversational assistant for an enterprise documentation platform.
+
+Your role is to handle:
+- Greetings: welcome the user warmly
+- Thanks: acknowledge graciously
+- Goodbye: polite sign-off
+- Casual chat: keep the conversation light and helpful
+
+Keep responses concise (1-3 sentences). Be warm but professional.
+
+Messages: {messages}
+""",
+        input_variables=["messages"],
+    )
+
+    chain = prompt_template | llm_model
+    response = chain.invoke({"messages": state.messages[-4:]})
+
+    state.messages += [response]
 
     return Command(
         goto=END,

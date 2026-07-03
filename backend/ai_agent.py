@@ -3,7 +3,7 @@
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv
 
-from utils import AgentState, QUERY_ANALYSIS, SUPERVISOR, GREETING, ENHANCER, CODER, RESEARCHER, MATHS_REASONER, SHOULD_USE_TOOLS, TOOLS, query_analysis_node, supervisor_node, greeting_node, enhancer_node, should_use_tools_node, use_tools_node, coder_node, maths_reasoner_node, researcher_node
+from utils import AgentState, QUERY_ANALYSIS, CONVERSATION, SUPERVISOR, GREETING, ENHANCER, CODER, RESEARCHER, MATHS_REASONER, SHOULD_USE_TOOLS, TOOLS, query_analysis_node, conversation_node, supervisor_node, greeting_node, enhancer_node, should_use_tools_node, use_tools_node, coder_node, maths_reasoner_node, researcher_node
 
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -22,6 +22,7 @@ load_dotenv()
 graph = StateGraph(AgentState)
 
 graph.add_node(QUERY_ANALYSIS, query_analysis_node)
+graph.add_node(CONVERSATION, conversation_node)
 graph.add_node(ENHANCER, enhancer_node)
 graph.add_node(GREETING, greeting_node)
 graph.add_node(CODER, coder_node)
