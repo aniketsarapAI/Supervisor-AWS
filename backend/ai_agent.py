@@ -3,7 +3,7 @@
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv
 
-from utils import AgentState, QUERY_ANALYSIS, CONVERSATION, SUPERVISOR, GREETING, ENHANCER, CODER, RESEARCHER, MATHS_REASONER, SHOULD_USE_TOOLS, TOOLS, query_analysis_node, conversation_node, supervisor_node, greeting_node, enhancer_node, should_use_tools_node, use_tools_node, coder_node, maths_reasoner_node, researcher_node
+from utils import AgentState, QUERY_ANALYSIS, ROUTER, CONVERSATION, KNOWLEDGE, CODING, ESCALATION, SUPERVISOR, GREETING, ENHANCER, CODER, RESEARCHER, MATHS_REASONER, SHOULD_USE_TOOLS, TOOLS, query_analysis_node, router_node, conversation_node, knowledge_node, coding_node, escalation_node, supervisor_node, greeting_node, enhancer_node, should_use_tools_node, use_tools_node, coder_node, maths_reasoner_node, researcher_node
 
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -21,8 +21,15 @@ load_dotenv()
 
 graph = StateGraph(AgentState)
 
+# New architecture nodes
 graph.add_node(QUERY_ANALYSIS, query_analysis_node)
+graph.add_node(ROUTER, router_node)
 graph.add_node(CONVERSATION, conversation_node)
+graph.add_node(KNOWLEDGE, knowledge_node)
+graph.add_node(CODING, coding_node)
+graph.add_node(ESCALATION, escalation_node)
+
+# Legacy nodes (preserved for incremental migration)
 graph.add_node(ENHANCER, enhancer_node)
 graph.add_node(GREETING, greeting_node)
 graph.add_node(CODER, coder_node)
@@ -32,7 +39,7 @@ graph.add_node(SHOULD_USE_TOOLS, should_use_tools_node)
 graph.add_node(TOOLS, use_tools_node)
 graph.add_node(SUPERVISOR, supervisor_node)
 
-graph.set_entry_point(SUPERVISOR)
+graph.set_entry_point(QUERY_ANALYSIS)
 
 DB_URI = os.getenv("SUPABASE_DB_URL", "")
 

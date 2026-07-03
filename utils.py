@@ -250,7 +250,11 @@ class QueryAnalysis(BaseModel):
 
 # NODES CONSTANTS
 QUERY_ANALYSIS = "query_analysis"
+ROUTER = "router"
 CONVERSATION = "conversation"
+KNOWLEDGE = "knowledge"
+CODING = "coding"
+ESCALATION = "escalation"
 SUPERVISOR = "supervisor"
 ENHANCER = "enhancer"
 GREETING = "greeting"
@@ -312,6 +316,39 @@ You must return ONLY a valid JSON object, no extra commentary. The format is:
         goto=END,
         update=state,
     )
+
+
+# NODE: ROUTER
+def router_node(state: AgentState) -> Command[Literal["conversation", "knowledge", "coding", "escalation"]]:
+    """
+    Deterministic router node.
+    Reads query_analysis.intent and routes to the appropriate agent.
+    No LLM call — pure conditional routing.
+    """
+    intent = state.query_analysis.intent if state.query_analysis else "conversation"
+
+    return Command(goto=intent)
+
+
+# NODE: KNOWLEDGE (stub — replaced by RAG in Milestone 5)
+def knowledge_node(state: AgentState) -> Command[Literal["__end__"]]:
+    response = AIMessage(content="[Knowledge Agent] RAG pipeline not yet implemented. This route is validated.")
+    state.messages += [response]
+    return Command(goto=END, update=state)
+
+
+# NODE: CODING (stub — replaced by ReAct in Milestone 4)
+def coding_node(state: AgentState) -> Command[Literal["__end__"]]:
+    response = AIMessage(content="[Coding Agent] ReAct agent not yet implemented. This route is validated.")
+    state.messages += [response]
+    return Command(goto=END, update=state)
+
+
+# NODE: ESCALATION (stub — full implementation in Milestone 6)
+def escalation_node(state: AgentState) -> Command[Literal["__end__"]]:
+    response = AIMessage(content="[Escalation Agent] Escalation flow validated. Ticket would be generated.")
+    state.messages += [response]
+    return Command(goto=END, update=state)
 
 
 # NODE: CONVERSATION
