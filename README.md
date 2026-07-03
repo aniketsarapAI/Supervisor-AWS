@@ -22,6 +22,8 @@ A production-grade LangGraph architecture demonstrating structured query analysi
 - [Google Cloud Deployment](#google-cloud-deployment)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Roadmap](#roadmap)
+- [Version 2 — State Separation & Prompt Builder](#version-2--state-separation--prompt-builder)
+- [Multi-Intent Query Handling](#multi-intent-query-handling)
 
 ## Core Tech Stack
 
@@ -645,3 +647,45 @@ Cloud Run retains previous revisions. If a deployment introduces an issue, traff
 - Migrate FAISS to pgvector for production RAG
 - Migrate Conversation Module from in-memory to Supabase/RDS PostgreSQL
 - Migrate from Google Cloud Run to AWS (ECS, RDS, Bedrock, ECR, ALB)
+
+### Version 2 — State Separation & Prompt Builder
+
+Refactor the state model to separate persistent conversation memory from per-request graph execution, making the architecture domain-agnostic:
+
+**New `ConversationState`** (persistent, owned by `ConversationModule`):
+- `summary: str` — rolling conversation summary
+- `recent_messages: list[dict]` — Human/AI messages only (no System/Tool/execution noise)
+- `working_memory: dict[str, Any]` — domain-agnostic slot storage (replaces `ActiveFilters`)
+- `metadata: dict[str, Any]` — last agent, latency, etc.
+
+**New `GraphState`** (per-request, checkpointed by LangGraph):
+- `messages: list[BaseMessage]` — full execution history (System, Human, AI, Tool)
+- `resolved_query: str` — renamed from `current_query`
+- `query_analysis: QueryAnalysis | None`
+- `context: Any | None` — unified field for retrieved docs, tool output, etc.
+- `agent_result: Any | None` — typed output per agent (e.g., `KnowledgeResult`, `CodingResult`)
+- `status: ExecutionStatus` — enum: `RUNNING`, `SUCCESS`, `FAILED`, `RETRY`
+
+**Shared Prompt Builder**:
+- `build_agent_messages()` — single utility used by every agent node
+- Consistent prompt layout, easier debugging, one place to optimize tokens
+- Each agent constructs its own prompt scope — no leaking system prompts between agents
+
+**Removes**:
+- `ActiveFilters` class — replaced by `working_memory` (reusable across documentation assistant, London Stone, healthcare, or any domain)
+
+This refactoring is the foundation for reusing the architecture in customer support, e-commerce, or any other LangGraph system without changing the state model.
+
+### Multi-Intent Query Handling
+
+Handle queries containing multiple distinct intents in a single message (e.g., "hello, write code and also what is FastAPI"):
+
+- **Multi-intent detection** — Query Analysis detects when a single message contains multiple intents
+- **Intent splitting** — Split the resolved query into N independent sub-queries
+- **Fan-out execution** — Execute each sub-query through its own agent path (conversation, coding, knowledge)
+- **Response merging** — Combine results from all agents into a single coherent response
+
+Architecture options to evaluate:
+- Parallel node execution via `Command(goto=[...])` (LangGraph fan-out)
+- Sequential processing with a coordinator agent
+- Sub-graph spawning for each intent
