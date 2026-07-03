@@ -188,10 +188,14 @@ def calculator(expression: str) -> str:
     )
 
 
-# CREATE THE TOOLS ARSERNAL
-tools_arsenal= [web_search_tool, wikipedia_search_tool, duck_duck_search_tool, pubmed_search_tool, python_code_executor_tool, calculator]
+# CREATE THE TOOLS ARSERNAL (shared — excludes coding tools)
+tools_arsenal= [web_search_tool, wikipedia_search_tool, duck_duck_search_tool, pubmed_search_tool]
 
 tools_arsenal_lookup= {tool.name: tool for tool in tools_arsenal}
+
+
+# CODING TOOLS (bounded — only Coding Agent uses these)
+coding_tools = [python_code_executor_tool, calculator]
 
 
 
@@ -228,6 +232,11 @@ llm_model = get_llm()
 
 # bind llm with tools
 binded_llm_model= llm_model.bind_tools(tools= tools_arsenal)
+
+
+# CODING AGENT (ReAct — bounded autonomy)
+from langgraph.prebuilt import create_react_agent
+coding_agent = create_react_agent(llm_model, coding_tools)
 
 
 
@@ -337,10 +346,15 @@ def knowledge_node(state: AgentState) -> Command[Literal["__end__"]]:
     return Command(goto=END, update=state)
 
 
-# NODE: CODING (stub — replaced by ReAct in Milestone 4)
+# NODE: CODING (ReAct — bounded autonomy)
 def coding_node(state: AgentState) -> Command[Literal["__end__"]]:
-    response = AIMessage(content="[Coding Agent] ReAct agent not yet implemented. This route is validated.")
-    state.messages += [response]
+    """
+    Coding agent using create_react_agent.
+    Bounded tools: Python REPL, Calculator.
+    No other agent shares these tools.
+    """
+    result = coding_agent.invoke({"messages": state.messages[-4:]})
+    state.messages += result["messages"][len(state.messages[-4:]):]
     return Command(goto=END, update=state)
 
 
