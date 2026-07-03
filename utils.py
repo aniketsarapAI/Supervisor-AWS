@@ -3,8 +3,10 @@ import os
 import re
 import json
 import math
+import uuid
 import numexpr
 from pathlib import Path
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from typing import Annotated, List, Literal
 from langchain_core.messages import BaseMessage
@@ -427,9 +429,23 @@ def coding_node(state: AgentState) -> Command[Literal["__end__"]]:
     return Command(goto=END, update=state)
 
 
-# NODE: ESCALATION (stub — full implementation in Milestone 6)
+# NODE: ESCALATION
 def escalation_node(state: AgentState) -> Command[Literal["__end__"]]:
-    response = AIMessage(content="[Escalation Agent] Escalation flow validated. Ticket would be generated.")
+    """
+    Escalation agent.
+    Triggered when requires_human=True or intent=escalation.
+    Generates ticket JSON for POC (no external integration).
+    """
+    ticket = {
+        "ticket_id": str(uuid.uuid4()),
+        "summary": state.messages[-1].content if state.messages else "No context available",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "open",
+    }
+
+    response = AIMessage(
+        content=f"Your request has been escalated. Ticket created:\n```json\n{json.dumps(ticket, indent=2)}\n```"
+    )
     state.messages += [response]
     return Command(goto=END, update=state)
 
