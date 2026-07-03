@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Generated artifacts
+faiss_index/
