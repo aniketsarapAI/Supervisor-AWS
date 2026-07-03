@@ -1,7 +1,6 @@
 # IMPORT PACKAGES
 
 from langgraph.graph import StateGraph
-from dotenv import load_dotenv
 
 from utils import AgentState, QUERY_ANALYSIS, ROUTER, CONVERSATION, KNOWLEDGE, CODING, ESCALATION, SUPERVISOR, GREETING, ENHANCER, CODER, RESEARCHER, MATHS_REASONER, SHOULD_USE_TOOLS, TOOLS, query_analysis_node, router_node, conversation_node, knowledge_node, coding_node, escalation_node, supervisor_node, greeting_node, enhancer_node, should_use_tools_node, use_tools_node, coder_node, maths_reasoner_node, researcher_node
 
@@ -10,12 +9,11 @@ from langgraph.checkpoint.memory import MemorySaver
 
 import asyncio
 import logging
-import os
+
+from .config import settings
 
 logging.getLogger("langgraph").setLevel(logging.ERROR)
 logging.getLogger("langgraph.pregel").setLevel(logging.ERROR)
-
-load_dotenv()
 
 # GRAPH CONSTANTS
 
@@ -41,7 +39,7 @@ graph.add_node(SUPERVISOR, supervisor_node)
 
 graph.set_entry_point(QUERY_ANALYSIS)
 
-DB_URI = os.getenv("SUPABASE_DB_URL", "")
+DB_URI = settings.SUPABASE_DB_URL
 
 
 async def graph_builder():

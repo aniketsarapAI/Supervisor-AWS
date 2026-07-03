@@ -8,16 +8,14 @@ Reads PDFs from knowledge_base/, chunks them, adds metadata,
 embeds with OpenAI-compatible embeddings, and stores in FAISS index.
 """
 
-import os
 import json
 from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_openai import OpenAIEmbeddings
+
+from backend.config import settings
+from backend.embeddings_factory import get_embeddings
 from langchain_community.vectorstores import FAISS
 
 KNOWLEDGE_BASE_DIR = Path(__file__).parent / "knowledge_base"
@@ -84,11 +82,7 @@ def ingest_documents():
     print(f"\nTotal chunks: {len(chunks)}")
 
     # Create embeddings
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-        openai_api_base="https://openrouter.ai/api/v1",
-    )
+    embeddings = get_embeddings()
 
     # Build FAISS index
     print("Building FAISS index...")

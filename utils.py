@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from typing import Annotated, List, Literal
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_tavily import TavilySearch
-from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
@@ -22,7 +21,9 @@ from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_community.tools import DuckDuckGoSearchRun
 
-load_dotenv()
+from backend.config import settings
+from backend.llm_factory import get_llm
+from backend.embeddings_factory import get_embeddings
 
 
 
@@ -219,33 +220,7 @@ coding_tools = [python_code_executor_tool, calculator]
 
 
 
-# LLM FACTORY — supports multiple providers via env vars
-def get_llm():
-    provider = os.getenv("LLM_PROVIDER", "openrouter")
-    model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-    temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-
-    if provider == "openrouter":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            default_headers={
-                "HTTP-Referer": os.getenv("APP_URL", "http://localhost:8501"),
-                "X-Title": "Supervisor Multi-Agent",
-            },
-        )
-    elif provider == "groq":
-        from langchain_groq import ChatGroq
-        return ChatGroq(model=model, temperature=temperature)
-    elif provider == "openai":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=model, temperature=temperature)
-    else:
-        raise ValueError(f"Unknown LLM provider: {provider}")
-
+# LLM and Embeddings (via factories)
 llm_model = get_llm()
 
 
@@ -261,16 +236,11 @@ coding_agent = create_react_agent(llm_model, coding_tools)
 # RAG RETRIEVER (Knowledge Agent)
 try:
     from langchain_community.vectorstores import FAISS
-    from langchain_openai import OpenAIEmbeddings
 
     FAISS_INDEX_DIR = Path(__file__).parent / "faiss_index"
 
     if FAISS_INDEX_DIR.exists():
-        rag_embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-            openai_api_base="https://openrouter.ai/api/v1",
-        )
+        rag_embeddings = get_embeddings()
         vectorstore = FAISS.load_local(str(FAISS_INDEX_DIR), rag_embeddings, allow_dangerous_deserialization=True)
         rag_retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     else:

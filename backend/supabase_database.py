@@ -1,16 +1,15 @@
 # IMPORT PACKAGES
-import os
 from supabase import create_client, Client
-from dotenv import load_dotenv
 from pydantic import EmailStr
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-# INSTANTIATE
-load_dotenv()
+from .config import settings
 
-url: str = os.getenv("SUPABASE_URL", "")
-anon_key: str = os.getenv("SUPABASE_KEY", "")
-service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+# INSTANTIATE
+
+url: str = settings.SUPABASE_URL
+anon_key: str = settings.SUPABASE_KEY
+service_key: str = settings.SUPABASE_SERVICE_KEY
 
 # Two clients: auth (anon key) for sign in/up, admin (service key) for DB ops
 sb_auth: Client | None = None
@@ -95,7 +94,7 @@ def sign_up_authentication(email: EmailStr, password: str):
         'email': email,
         'password': password,
         'options': {
-            'email_redirect_to': os.getenv("REDIRECT_URL", ""),
+            'email_redirect_to': settings.APP_URL,
         },
     })
     return response

@@ -1,11 +1,9 @@
 # IMPORT PACKAGES
-import os
 import json
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, Query, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -23,8 +21,7 @@ from .supabase_database import (
     refresh_authentication,
 )
 from .conversation_module import conversation_module
-
-load_dotenv()
+from .config import settings
 
 # Structured JSON logging for Cloud Logging
 class CloudLogFormatter(logging.Formatter):
@@ -55,7 +52,7 @@ _start_time = datetime.now(timezone.utc)
 # CORS — restrict to frontend domain in production
 # Note: Streamlit makes server-side requests, so CORS doesn't apply.
 # If a browser-based frontend is added, restrict CORS_ORIGINS to that domain.
-_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+_cors_origins = settings.CORS_ORIGINS.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -71,16 +68,16 @@ app.add_middleware(
 async def startup():
     global agent_app
 
-    required_vars = [
-        "OPENROUTER_API_KEY",
-        "SUPABASE_URL",
-        "SUPABASE_JWT_SECRET",
-        "SUPABASE_SERVICE_KEY",
-    ]
-    missing = [v for v in required_vars if not os.getenv(v)]
+    required_vars = {
+        "OPENROUTER_API_KEY": settings.OPENROUTER_API_KEY,
+        "SUPABASE_URL": settings.SUPABASE_URL,
+        "SUPABASE_JWT_SECRET": settings.SUPABASE_JWT_SECRET,
+        "SUPABASE_SERVICE_KEY": settings.SUPABASE_SERVICE_KEY,
+    }
+    missing = [k for k, v in required_vars.items() if not v]
     if missing:
         raise RuntimeError(f"Missing required env vars: {missing}")
-    if not os.getenv("SUPABASE_DB_URL"):
+    if not settings.SUPABASE_DB_URL:
         logger.warning("SUPABASE_DB_URL not set — falling back to MemorySaver (not prod-safe)")
 
     agent_app = await graph_builder()
