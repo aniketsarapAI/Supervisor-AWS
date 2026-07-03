@@ -4,6 +4,7 @@ import re
 import json
 import math
 import numexpr
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Annotated, List, Literal
 from langchain_core.messages import BaseMessage
@@ -239,6 +240,26 @@ from langgraph.prebuilt import create_react_agent
 coding_agent = create_react_agent(llm_model, coding_tools)
 
 
+# RAG RETRIEVER (Knowledge Agent)
+try:
+    from langchain_community.vectorstores import FAISS
+    from langchain_openai import OpenAIEmbeddings
+
+    FAISS_INDEX_DIR = Path(__file__).parent / "faiss_index"
+
+    if FAISS_INDEX_DIR.exists():
+        rag_embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+            openai_api_base="https://openrouter.ai/api/v1",
+        )
+        rag_retriever = FAISS.load_local(str(FAISS_INDEX_DIR), rag_embeddings, allow_dangerous_deserialization=True)
+    else:
+        rag_retriever = None
+except Exception:
+    rag_retriever = None
+
+
 
 
 # QUERY ANALYSIS PYDANTIC MODEL
@@ -339,9 +360,57 @@ def router_node(state: AgentState) -> Command[Literal["conversation", "knowledge
     return Command(goto=intent)
 
 
-# NODE: KNOWLEDGE (stub — replaced by RAG in Milestone 5)
+# NODE: KNOWLEDGE (RAG)
 def knowledge_node(state: AgentState) -> Command[Literal["__end__"]]:
-    response = AIMessage(content="[Knowledge Agent] RAG pipeline not yet implemented. This route is validated.")
+    """
+    Knowledge agent using RAG.
+    Retrieves chunks from FAISS index, generates response with citations.
+    If query too broad or no results, sets clarification_needed.
+    """
+    last_msg = state.messages[-1].content if state.messages else ""
+
+    if rag_retriever is None:
+        response = AIMessage(content="[Knowledge Agent] RAG index not loaded. Run `python ingest_docs.py` first.")
+        state.messages += [response]
+        return Command(goto=END, update=state)
+
+    # Retrieve relevant chunks
+    docs = rag_retriever.invoke(last_msg, k=4)
+
+    if not docs:
+        response = AIMessage(content="No relevant documentation found. Could you rephrase your question or specify a topic?")
+        state.messages += [response]
+        return Command(goto=END, update=state)
+
+    # Build context from retrieved chunks
+    context_parts = []
+    for i, doc in enumerate(docs):
+        source = doc.metadata.get("document", "Unknown")
+        framework = doc.metadata.get("framework", "")
+        context_parts.append(f"[{source}] ({framework})\n{doc.page_content}")
+
+    context = "\n\n---\n\n".join(context_parts)
+
+    prompt_template = PromptTemplate(
+        template="""
+You are a Knowledge Agent with access to enterprise documentation.
+
+Answer the user's question using ONLY the provided context.
+Cite your sources using the format [Source: DocumentName].
+If the context doesn't contain enough information, say so clearly.
+
+Context:
+{context}
+
+Messages:
+{messages}
+""",
+        input_variables=["context", "messages"],
+    )
+
+    chain = prompt_template | llm_model
+    response = chain.invoke({"context": context, "messages": state.messages[-4:]})
+
     state.messages += [response]
     return Command(goto=END, update=state)
 
