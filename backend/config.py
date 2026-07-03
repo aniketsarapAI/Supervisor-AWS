@@ -1,8 +1,3 @@
-"""
-Centralized configuration for the Supervisor Multi-Agent application.
-All environment variables are read here and exposed through a single Settings object.
-"""
-
 import os
 from dotenv import load_dotenv
 
@@ -10,45 +5,41 @@ load_dotenv()
 
 
 class Settings:
-    """
-    Central configuration object.
-    All environment variables are accessed through this class.
-    """
+    # LLM
+    llm_provider: str = os.getenv("LLM_PROVIDER", "openrouter")
+    llm_model: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    llm_temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 
-    # LLM Configuration
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
-    LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-
-    # Embeddings Configuration
-    EMBEDDINGS_PROVIDER: str = os.getenv("EMBEDDINGS_PROVIDER", "openai")
-    EMBEDDINGS_MODEL: str = os.getenv("EMBEDDINGS_MODEL", "text-embedding-3-small")
+    # Embeddings
+    embeddings_provider: str = os.getenv("EMBEDDINGS_PROVIDER", "openai")
+    embeddings_model: str = os.getenv("EMBEDDINGS_MODEL", "text-embedding-3-small")
 
     # API Keys
-    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+    openrouter_api_key: str | None = os.getenv("OPENROUTER_API_KEY")
+    openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
+    tavily_api_key: str | None = os.getenv("TAVILY_API_KEY")
+    groq_api_key: str | None = os.getenv("GROQ_API_KEY")
 
     # Supabase
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
-    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
-    SUPABASE_DB_URL: str = os.getenv("SUPABASE_DB_URL", "")
+    supabase_url: str | None = os.getenv("SUPABASE_URL")
+    supabase_key: str | None = os.getenv("SUPABASE_KEY")
+    supabase_service_key: str | None = os.getenv("SUPABASE_SERVICE_KEY")
+    supabase_jwt_secret: str | None = os.getenv("SUPABASE_JWT_SECRET")
+    supabase_db_url: str | None = os.getenv("SUPABASE_DB_URL")
 
     # LangSmith
-    LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", "")
-    LANGCHAIN_ENDPOINT: str = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "supervisor-aws")
+    langchain_tracing: bool = os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true"
+    langchain_endpoint: str | None = os.getenv("LANGCHAIN_ENDPOINT")
+    langchain_api_key: str | None = os.getenv("LANGCHAIN_API_KEY")
+    langchain_project: str | None = os.getenv("LANGCHAIN_PROJECT")
 
-    # Application
-    APP_URL: str = os.getenv("APP_URL", "http://localhost:8501")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
+    # Frontend / URLs
+    app_url: str = os.getenv("APP_URL", "http://localhost:8501")
+    backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
+    cors_origins: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
 
-    # Cookie security
-    COOKIE_SECURE: str = os.getenv("COOKIE_SECURE", "")
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    # Paths
+    faiss_index_dir: str = os.getenv("FAISS_INDEX_DIR", os.path.join(os.path.dirname(__file__), "..", "faiss_index"))
 
 
 settings = Settings()

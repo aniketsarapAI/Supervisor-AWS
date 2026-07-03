@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Annotated, List, Literal
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_tavily import TavilySearch
+from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
@@ -21,9 +22,7 @@ from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_community.tools import DuckDuckGoSearchRun
 
-from backend.config import settings
-from backend.llm_factory import get_llm
-from backend.embeddings_factory import get_embeddings
+load_dotenv()
 
 
 
@@ -220,7 +219,8 @@ coding_tools = [python_code_executor_tool, calculator]
 
 
 
-# LLM and Embeddings (via factories)
+from backend.llm_factory import get_llm, get_embeddings
+
 llm_model = get_llm()
 
 
@@ -236,8 +236,9 @@ coding_agent = create_react_agent(llm_model, coding_tools)
 # RAG RETRIEVER (Knowledge Agent)
 try:
     from langchain_community.vectorstores import FAISS
+    from backend.config import settings
 
-    FAISS_INDEX_DIR = Path(__file__).parent / "faiss_index"
+    FAISS_INDEX_DIR = Path(settings.faiss_index_dir)
 
     if FAISS_INDEX_DIR.exists():
         rag_embeddings = get_embeddings()
