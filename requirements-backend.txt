@@ -35,3 +35,4 @@ groq==0.37.1
 ollama==0.6.2
 faiss-cpu==1.10.0
 pypdf==5.4.0
+slowapi==0.1.9

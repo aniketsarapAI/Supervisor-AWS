@@ -38,6 +38,9 @@ class Settings:
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     cors_origins: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
 
+    # Rate limiting
+    rate_limit: str = os.getenv("RATE_LIMIT", "30/minute")
+
     # Paths
     faiss_index_dir: str = os.getenv("FAISS_INDEX_DIR", os.path.join(os.path.dirname(__file__), "..", "faiss_index"))
 

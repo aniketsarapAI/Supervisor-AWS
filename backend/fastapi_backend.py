@@ -2,13 +2,18 @@
 import os
 import json
 import logging
+import time
 from datetime import datetime, timezone
-from fastapi import FastAPI, Query, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Query, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Optional
 import uuid
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -24,6 +29,7 @@ from .supabase_database import (
 )
 from .conversation_module import conversation_module
 from .config import settings
+from .security import security_pipeline, metrics_collector, generate_request_id
 
 load_dotenv()
 
@@ -53,6 +59,9 @@ app = FastAPI(title="Supervisor Multi-Agent API", version="2.0.0")
 agent_app = None
 _start_time = datetime.now(timezone.utc)
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # CORS — restrict to frontend domain in production
 # Note: Streamlit makes server-side requests, so CORS doesn't apply.
 # If a browser-based frontend is added, restrict CORS_ORIGINS to that domain.
@@ -65,6 +74,15 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Type"],
 )
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"error": "Rate limit exceeded", "detail": "Too many requests. Please slow down."},
+    )
 
 
 # STARTUP: validate config + build agent graph
@@ -166,8 +184,9 @@ class ChatStreamRequest(BaseModel):
     thread_id: Optional[str] = None
 
 
-async def generate_agent_response(message: str, thread_id: str):
+async def generate_agent_response(message: str, thread_id: str, request_id: str, pii_notes: list[str]):
     memory_config = {"configurable": {"thread_id": thread_id}}
+    start_time = time.time()
 
     # Conversation Module: load persistent state
     conv_state = conversation_module.load_state(thread_id)
@@ -212,7 +231,7 @@ async def generate_agent_response(message: str, thread_id: str):
                     safe_content_json = {"type": "content", "content": event_content}
                     yield f"data: {json.dumps(safe_content_json)}\n\n"
     except Exception as e:
-        logger.error(f"Agent streaming error: {e}")
+        logger.error(f"Agent streaming error: {e}", extra={"extra_data": {"request_id": request_id}})
         error_json = json.dumps({"type": "error", "content": str(e)})
         yield f"data: {error_json}\n\n"
     finally:
@@ -234,12 +253,62 @@ async def generate_agent_response(message: str, thread_id: str):
 
         conversation_module.save_state(thread_id, updated_messages, updated_filters)
 
+        # Output validation: PII redaction on full response
+        ov_result = security_pipeline.validate_output(full_response)
+        if ov_result.warnings:
+            logger.info("Output validation warnings", extra={"extra_data": {"warnings": ov_result.warnings, "request_id": request_id}})
+
+        # Record metrics
+        elapsed_ms = round((time.time() - start_time) * 1000, 2)
+        intent = ""
+        if final_snapshot and final_snapshot.values and "query_analysis" in final_snapshot.values:
+            qa = final_snapshot.values["query_analysis"]
+            if qa:
+                intent = getattr(qa, "intent", "")
+        success = full_response != "" and "error" not in full_response.lower()
+        metrics_collector.record(latency_ms=elapsed_ms, success=success, intent=intent)
+
+        logger.info("Request completed", extra={"extra_data": {
+            "request_id": request_id,
+            "latency_ms": elapsed_ms,
+            "intent": intent,
+            "success": success,
+            "pii_detected": bool(pii_notes),
+            "output_warnings": len(ov_result.warnings),
+        }})
+
         yield "data: {\"type\": \"end\"}\n\n"
 
 
 @app.post("/chat_stream")
-def chat_stream(req: ChatStreamRequest, user_id: str = Depends(get_current_user_id)):
+@limiter.limit(settings.rate_limit)
+def chat_stream(
+    request: Request,
+    req: ChatStreamRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    request_id = generate_request_id()
+
+    # Security check: validate input
+    is_allowed, cleaned_msg, security_notes = security_pipeline.validate_input(req.message)
+    if not is_allowed:
+        metrics_collector.record(latency_ms=0, success=False, blocked=True)
+        logger.warning("Request blocked by security", extra={"extra_data": {
+            "request_id": request_id,
+            "reason": security_notes,
+        }})
+        raise HTTPException(status_code=400, detail=security_notes[0] if security_notes else "Message blocked")
+
+    pii_notes = [n for n in security_notes if "PII" in n]
+
     return StreamingResponse(
-        generate_agent_response(req.message, req.thread_id or user_id),
+        generate_agent_response(cleaned_msg, req.thread_id or user_id, request_id, pii_notes),
         media_type="text/event-stream",
     )
+
+
+# --- METRICS ENDPOINT ---
+
+@app.get("/api/metrics")
+def get_metrics():
+    return metrics_collector.summary
