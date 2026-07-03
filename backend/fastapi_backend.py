@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import Optional
 import uuid
 
-from langchain_core.messages import HumanMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .ai_agent import graph_builder
@@ -180,10 +180,8 @@ async def generate_agent_response(message: str, thread_id: str):
     recent_msgs = []
     for msg in conv_state.recent_messages:
         if msg.get("role") == "human":
-            from langchain_core.messages import HumanMessage
             recent_msgs.append(HumanMessage(content=msg["content"]))
         elif msg.get("role") == "ai":
-            from langchain_core.messages import AIMessage
             recent_msgs.append(AIMessage(content=msg["content"]))
 
     # Inject active filters from Conversation Module
