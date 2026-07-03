@@ -206,6 +206,10 @@ async def generate_agent_response(message: str, thread_id: str):
     try:
         async for event in events:
             if event["event"] == "on_chat_model_stream":
+                # Skip internal Query Analysis output — only stream agent responses
+                metadata = event.get("metadata", {})
+                if metadata.get("langgraph_node") == "query_analysis":
+                    continue
                 if isinstance(event["data"]["chunk"], AIMessageChunk):
                     event_content = event["data"]["chunk"].content
                     full_response += event_content

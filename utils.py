@@ -38,6 +38,22 @@ class ActiveFilters(BaseModel):
     topic: str | None = Field(default=None, description="Current topic of discussion (e.g., Memory, Agents, RAG)")
 
 
+# QUERY ANALYSIS PYDANTIC MODEL
+class QueryAnalysis(BaseModel):
+    """
+    Structured output from the Query Analysis node.
+    Replaces the old Supervisor classification approach.
+    """
+    resolved_query: str = Field(description="The resolved, self-contained user query after considering conversation context.")
+    intent: Literal["conversation", "knowledge", "coding", "escalation"] = Field(description="The determined intent category for routing.")
+    entities: dict = Field(default_factory=dict, description="Extracted entities that may become active filters (framework, library, language, topic).")
+    confidence: float = Field(description="Confidence score between 0.0 and 1.0 for the intent classification.")
+    requires_human: bool = Field(default=False, description="Whether this query requires human intervention.")
+    clarification_needed: bool = Field(default=False, description="Whether the query is too vague or broad and needs clarification.")
+    clarification_question: str | None = Field(default=None, description="If clarification_needed is True, the question to ask the user.")
+    topic_changed: bool = Field(default=False, description="Whether the user has changed topic, signaling that active filters should be cleared.")
+
+
 # AGENT STATE
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], Field(default=[], description="The messages in the state")]
@@ -262,24 +278,6 @@ except Exception:
     rag_retriever = None
 
 
-
-
-# QUERY ANALYSIS PYDANTIC MODEL
-class QueryAnalysis(BaseModel):
-    """
-    Structured output from the Query Analysis node.
-    Replaces the old Supervisor classification approach.
-    """
-    resolved_query: str = Field(description="The resolved, self-contained user query after considering conversation context.")
-    intent: Literal["conversation", "knowledge", "coding", "escalation"] = Field(description="The determined intent category for routing.")
-    entities: dict = Field(default_factory=dict, description="Extracted entities that may become active filters (framework, library, language, topic).")
-    confidence: float = Field(description="Confidence score between 0.0 and 1.0 for the intent classification.")
-    requires_human: bool = Field(default=False, description="Whether this query requires human intervention.")
-    clarification_needed: bool = Field(default=False, description="Whether the query is too vague or broad and needs clarification.")
-    clarification_question: str | None = Field(default=None, description="If clarification_needed is True, the question to ask the user.")
-    topic_changed: bool = Field(default=False, description="Whether the user has changed topic, signaling that active filters should be cleared.")
-
-
 # NODES CONSTANTS
 QUERY_ANALYSIS = "query_analysis"
 ROUTER = "router"
@@ -343,9 +341,8 @@ You must return ONLY a valid JSON object, no extra commentary. The format is:
     chain_output = chain.invoke({"messages": state.messages[-6:]})
 
     state.query_analysis = chain_output
-
     return Command(
-        goto=END,
+        goto=ROUTER,
         update=state,
     )
 
