@@ -39,7 +39,7 @@ graph.add_node(SUPERVISOR, supervisor_node)
 
 graph.set_entry_point(QUERY_ANALYSIS)
 
-DB_URI = settings.SUPABASE_DB_URL
+DB_URI = settings.supabase_db_url
 
 
 async def graph_builder():

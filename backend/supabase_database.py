@@ -7,9 +7,9 @@ from .config import settings
 
 # INSTANTIATE
 
-url: str = settings.SUPABASE_URL
-anon_key: str = settings.SUPABASE_KEY
-service_key: str = settings.SUPABASE_SERVICE_KEY
+url: str = settings.supabase_url
+anon_key: str = settings.supabase_key
+service_key: str = settings.supabase_service_key
 
 # Two clients: auth (anon key) for sign in/up, admin (service key) for DB ops
 sb_auth: Client | None = None
@@ -94,7 +94,7 @@ def sign_up_authentication(email: EmailStr, password: str):
         'email': email,
         'password': password,
         'options': {
-            'email_redirect_to': settings.APP_URL,
+            'email_redirect_to': settings.app_url,
         },
     })
     return response
