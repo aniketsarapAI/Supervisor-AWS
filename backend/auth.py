@@ -19,8 +19,8 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = settings.SUPABASE_URL
-SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET
+SUPABASE_URL = settings.supabase_url
+SUPABASE_JWT_SECRET = settings.supabase_jwt_secret
 
 EXPECTED_ISSUER = f"{SUPABASE_URL}/auth/v1"
 EXPECTED_AUDIENCE = "authenticated"
